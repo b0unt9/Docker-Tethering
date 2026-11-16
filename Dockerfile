@@ -13,4 +13,6 @@ COPY udhcpc-no-gw.sh /udhcpc-no-gw.sh
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /udhcpc-no-gw.sh /entrypoint.sh
 
+VOLUME ["/config"]
+
 ENTRYPOINT ["/entrypoint.sh"]
