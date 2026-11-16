@@ -4,8 +4,12 @@ set -e
 : "${PROXY_PORT:?ERROR: PROXY_PORT environment variable is required (e.g. PROXY_PORT=1080)}"
 export PROXY_PORT
 
-mkdir -p /var/lib/lockdown
-rm -rf /var/run/usbmuxd
+mkdir -p /config/lockdown /config/vnstat /var/lib /var/run/vnstat
+rm -rf /var/lib/lockdown /var/lib/vnstat /var/run/usbmuxd
+ln -s /config/lockdown /var/lib/lockdown
+ln -s /config/vnstat /var/lib/vnstat
+
+vnstatd -d -u root -g root --noadd --startempty
 
 find_tether_iface() {
     for netdir in /sys/class/net/*; do
@@ -39,7 +43,7 @@ while true; do
             echo "Found tethering interface: $IFACE. Requesting IP..."
             ip link set "$IFACE" up
             [ -f "/var/run/udhcpc-$IFACE.pid" ] && kill "$(cat "/var/run/udhcpc-$IFACE.pid")" 2>/dev/null || true
-            udhcpc -i "$IFACE" -s /usr/local/bin/udhcpc-no-gw.sh -b -p "/var/run/udhcpc-$IFACE.pid"
+            udhcpc -i "$IFACE" -s /udhcpc-no-gw.sh -b -p "/var/run/udhcpc-$IFACE.pid"
         fi
     fi
     sleep 5
