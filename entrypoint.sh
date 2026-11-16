@@ -1,8 +1,13 @@
 #!/bin/sh
 set -e
 
+: "${PROXY_PORT:?ERROR: PROXY_PORT environment variable is required (e.g. PROXY_PORT=1080)}"
+
 mkdir -p /var/lib/lockdown
 rm -rf /var/run/usbmuxd
+
+socat "TCP-LISTEN:${PROXY_PORT},fork,reuseaddr" "TCP:172.20.10.1:${PROXY_PORT}" &
+echo "PROXY relay started on port ${PROXY_PORT} -> 172.20.10.1:${PROXY_PORT}"
 
 usbmuxd -f -v -U root &
 USBMUXD_PID=$!
