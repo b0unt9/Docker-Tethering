@@ -1,13 +1,21 @@
 #!/bin/sh
 set -e
 
-mkdir -p /var/lib/lockdown /var/run/usbmuxd
+mkdir -p /var/lib/lockdown
+rm -rf /var/run/usbmuxd
 
-usbmuxd -v -U root &
+usbmuxd -f -v -U root &
 USBMUXD_PID=$!
 echo "usbmuxd started (PID: $USBMUXD_PID). Waiting for iPhone..."
 
 while true; do
+    if ! kill -0 "$USBMUXD_PID" 2>/dev/null; then
+        echo "usbmuxd stopped. Restarting..."
+        rm -rf /var/run/usbmuxd
+        usbmuxd -f -v -U root &
+        USBMUXD_PID=$!
+    fi
+
     IFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(enx|usb)' | head -n 1)
     if [ -n "$IFACE" ]; then
         if ! ip addr show "$IFACE" | grep -q "inet "; then
