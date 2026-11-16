@@ -2,16 +2,28 @@
 set -e
 
 : "${PROXY_PORT:?ERROR: PROXY_PORT environment variable is required (e.g. PROXY_PORT=1080)}"
+export PROXY_PORT
 
 mkdir -p /var/lib/lockdown
 rm -rf /var/run/usbmuxd
 
-socat "TCP-LISTEN:${PROXY_PORT},fork,reuseaddr" "TCP:172.20.10.1:${PROXY_PORT}" &
-echo "PROXY relay started on port ${PROXY_PORT} -> 172.20.10.1:${PROXY_PORT}"
+find_tether_iface() {
+    for netdir in /sys/class/net/*; do
+        [ -e "$netdir" ] || continue
+        iface=$(basename "$netdir")
+        drv=$(basename "$(readlink "$netdir/device/driver" 2>/dev/null)" 2>/dev/null || true)
+        case "$drv" in
+            ipheth|rndis_host|cdc_ncm)
+                echo "$iface"
+                return 0
+                ;;
+        esac
+    done
+}
 
 usbmuxd -f -v -U root &
 USBMUXD_PID=$!
-echo "usbmuxd started (PID: $USBMUXD_PID). Waiting for iPhone..."
+echo "usbmuxd started (PID: $USBMUXD_PID). Waiting for device..."
 
 while true; do
     if ! kill -0 "$USBMUXD_PID" 2>/dev/null; then
@@ -21,7 +33,7 @@ while true; do
         USBMUXD_PID=$!
     fi
 
-    IFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(enx|usb)' | head -n 1)
+    IFACE=$(find_tether_iface)
     if [ -n "$IFACE" ]; then
         if ! ip addr show "$IFACE" | grep -q "inet "; then
             echo "Found tethering interface: $IFACE. Requesting IP..."
