@@ -39,6 +39,14 @@ while true; do
 
     IFACE=$(find_tether_iface)
     if [ -n "$IFACE" ]; then
+        if ! vnstat --dbiflist 2>/dev/null | grep -qw "$IFACE"; then
+            echo "Registering $IFACE to vnstat..."
+            killall vnstatd 2>/dev/null || true
+            sleep 1
+            vnstat --add -i "$IFACE"
+            vnstatd -d -u root -g root --noadd --startempty
+        fi
+
         if ! ip addr show "$IFACE" | grep -q "inet "; then
             echo "Found tethering interface: $IFACE. Requesting IP..."
             ip link set "$IFACE" up
